@@ -1,15 +1,17 @@
 from flask import Flask, request, jsonify
 import joblib
+from flask_cors import CORS
 import numpy as np
 import os
 
 app = Flask(__name__)
+CORS(app)
 
 # =========================
 # LOAD MODEL
 # =========================
 
-model_path = os.path.join("model", "random_forest.pkl")
+model_path = os.path.join("..","model", "random_forest.pkl")
 model = joblib.load(model_path)
 
 # =========================
