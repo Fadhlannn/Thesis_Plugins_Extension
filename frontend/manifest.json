@@ -6,12 +6,7 @@
   "permissions": ["storage", "activeTab", "scripting", "webNavigation", "tabs"],
   "host_permissions": ["<all_urls>", "http://localhost:5000/*"],
   "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "asset/icon16.png",
-      "48": "asset/icon48.png",
-      "128": "asset/icon128.png"
-    }
+    "default_popup": "popup.html"
   },
   "background": {
     "service_worker": "js/background.js"
@@ -28,10 +23,5 @@
       "resources": ["components/*", "pages/*", "asset/*", "src/*"],
       "matches": ["<all_urls>"]
     }
-  ],
-  "icons": {
-    "16": "asset/icon16.png",
-    "48": "asset/icon48.png",
-    "128": "asset/icon128.png"
-  }
+  ]
 }
