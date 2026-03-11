@@ -28,7 +28,7 @@ def analyze_site(data: WebsiteData):
     score = 0
     reasons = []
 
-    # RULE 1: URL menggunakan IP
+    # RULE 1: URL menggunakan IP 
     ip_pattern = r"http[s]?://\d+\.\d+\.\d+\.\d+"
 
     if re.match(ip_pattern, data.url):

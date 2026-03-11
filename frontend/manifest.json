@@ -1,27 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "Privacy Guard",
+  "name": "Web Security Guard",
   "version": "1.0",
-  "description": "Web Security Extension - Melindungi dari website berbahaya",
-  "permissions": ["storage", "activeTab", "scripting", "webNavigation", "tabs"],
-  "host_permissions": ["<all_urls>", "http://localhost:5000/*"],
-  "action": {
-    "default_popup": "popup.html"
-  },
+  "description": "Website security analyzer",
+  "permissions": ["tabs", "activeTab", "storage", "webNavigation", "scripting"],
+  "host_permissions": [
+    "<all_urls>",
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*"
+  ],
   "background": {
     "service_worker": "js/background.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["js/content.js"],
-      "run_at": "document_end"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["components/*", "pages/*", "asset/*", "src/*"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Web Security"
+  }
 }
