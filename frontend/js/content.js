@@ -1,78 +1,74 @@
 // js/content.js
-console.log("✅ CONTENT SCRIPT BERHASIL DI-INJECT!")
-console.log("URL:", window.location.href)
 
-// Fungsi untuk mengumpulkan data
-function collectWebsiteData() {
-  console.log("Mengumpulkan data website...")
+console.log("🔥 Content script aktif");
 
-  // Deteksi tracker sederhana
-  const scripts = document.querySelectorAll("script[src]")
-  const trackers = Array.from(scripts).filter((s) => {
-    const src = s.src.toLowerCase()
-    return (
-      src.includes("google") ||
-      src.includes("analytics") ||
-      src.includes("facebook") ||
-      src.includes("track")
-    )
-  }).length
+// =============================
+// 🔐 PERMISSIONS
+// =============================
+async function getPermissions() {
+  const permissions = {}
 
-  // Deteksi third-party domains
-  const currentDomain = window.location.hostname
-  const thirdParty = new Set()
-
-  document
-    .querySelectorAll("script[src], link[href], img[src], iframe[src]")
-    .forEach((el) => {
-      try {
-        const url = new URL(el.src || el.href, window.location.href)
-        if (url.hostname && url.hostname !== currentDomain) {
-          thirdParty.add(url.hostname)
-        }
-      } catch (e) {}
-    })
-
-  const data = {
-    url: window.location.href,
-    is_https: window.location.protocol === "https:",
-    tracker_count: trackers,
-    permissions: [],
-    cookies_count: document.cookie.split(";").filter((c) => c.trim()).length,
-    third_party_domains: Array.from(thirdParty),
-    iframe_count: document.querySelectorAll("iframe").length,
-    redirect_count: 0,
-    domain_age_days: 0,
-    ip_address: window.location.hostname,
+  const check = async (name) => {
+    try {
+      const res = await navigator.permissions.query({ name })
+      return res.state
+    } catch {
+      return "unsupported"
+    }
   }
 
-  console.log("Data terkumpul:", data)
-  return data
+  permissions.geolocation = await check("geolocation")
+  permissions.notifications = await check("notifications")
+  permissions.camera = await check("camera")
+  permissions.microphone = await check("microphone")
+
+  return permissions
 }
 
-// Listen for messages
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log("Pesan diterima di content script:", message)
+// =============================
+// 🌐 THIRD PARTY
+// =============================
+function getThirdPartyDomains() {
+  const domains = new Set();
 
-  if (message.action === "ping") {
-    console.log("Mengirim pong...")
-    sendResponse({ status: "alive", url: window.location.href })
-    return true
-  }
+  document.querySelectorAll("script, img, iframe, link").forEach((el) => {
+    const src = el.src || el.href;
+    if (!src) return;
 
-  if (message.action === "collectWebsiteData") {
-    const data = collectWebsiteData()
-    sendResponse(data)
-    return true
-  }
-})
+    try {
+      const url = new URL(src);
+      if (url.hostname !== location.hostname) {
+        domains.add(url.hostname);
+      }
+    } catch {}
+  });
 
-// Kirim sinyal bahwa content script sudah siap
-setTimeout(() => {
-  chrome.runtime
-    .sendMessage({
-      type: "CONTENT_SCRIPT_READY",
-      url: window.location.href,
-    })
-    .catch(() => {})
-}, 500)
+  return Array.from(domains);
+}
+
+// =============================
+// 📊 COLLECT DATA
+// =============================
+async function collectData() {
+  return {
+    url: location.href,
+    is_https: location.protocol === "https:",
+    iframe_count: document.querySelectorAll("iframe").length,
+    third_party_domains: getThirdPartyDomains(),
+    tracker_count: document.querySelectorAll(
+      "script[src*='track'], script[src*='analytics']"
+    ).length,
+    permissions: await getPermissions(),
+    domain_age_days: 0,
+  };
+}
+
+// =============================
+// 🚀 SEND TO EXTENSION
+// =============================
+collectData().then((data) => {
+  chrome.runtime.sendMessage({
+    type: "CONTENT_SCRIPT_READY",
+    data: data,
+  });
+});

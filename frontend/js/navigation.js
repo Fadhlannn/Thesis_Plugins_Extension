@@ -1,213 +1,82 @@
 // js/navigation.js
 
-const API_URL = "http://localhost:8000"
+import { analyzeWebsite } from "./api.js";
 
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("Navigation initialized")
+console.log("🚀 Navigation jalan");
 
-  const navbarFrame = document.getElementById("navbarFrame")
-  const contentFrame = document.getElementById("contentFrame")
+const contentFrame = document.getElementById("contentFrame");
 
-  const lastPage = localStorage.getItem("lastPage") || "dashboard"
-  contentFrame.src = `pages/${lastPage}.html`
-
-  navbarFrame.addEventListener("load", () => {
-    setTimeout(() => {
-      if (navbarFrame.contentWindow) {
-        navbarFrame.contentWindow.postMessage(
-          { type: "SET_ACTIVE", page: lastPage },
-          "*",
-        )
-      }
-    }, 100)
-  })
-
-  window.addEventListener("message", (event) => {
-    if (event.data.type === "NAV_CLICK") {
-      const page = event.data.page
-      contentFrame.src = `pages/${page}.html`
-      localStorage.setItem("lastPage", page)
-
-      if (page === "dashboard") {
-        setTimeout(() => analyzeCurrentWebsite(), 500)
-      }
-    }
-
-    if (event.data.type === "REQUEST_ANALYSIS") {
-      analyzeCurrentWebsite()
-    }
-  })
-
-  if (lastPage === "dashboard") {
-    setTimeout(() => analyzeCurrentWebsite(), 1000)
-  }
-})
-
-// Inject content script ke tab
-async function injectContentScript(tabId) {
-  try {
-    console.log("Mencoba inject content script ke tab:", tabId)
-
-    await chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      files: ["js/content.js"],
-    })
-
-    console.log("Content script berhasil di-inject!")
-
-    // Tunggu sebentar agar content script siap
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    return true
-  } catch (error) {
-    console.log("Gagal inject content script:", error.message)
-    return false
-  }
+// ambil tab aktif
+async function getActiveTab() {
+  const [tab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true,
+  });
+  return tab;
 }
 
-// Ambil data dari tab
-async function getCurrentTabData() {
+// inject content script
+async function injectScript(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId: tabId },
+    files: ["js/content.js"],
+  });
+}
+
+// =============================
+// 🔥 MAIN FLOW
+// =============================
+async function init() {
+  const tab = await getActiveTab();
+
+  console.log("🌐 Tab:", tab.url);
+
+  await injectScript(tab.id);
+}
+
+function getCookies() {
   return new Promise((resolve) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-      if (!tabs || !tabs[0]) {
-        resolve(null)
-        return
-      }
-
-      const tab = tabs[0]
-      console.log("Tab aktif:", tab.url)
-
-      // Skip internal pages
-      if (tab.url.startsWith("chrome://") || tab.url.startsWith("about:")) {
+    chrome.runtime.sendMessage({ type: "GET_COOKIES" }, (res) => {
+      if (res && res.status === "ok") {
         resolve({
-          url: tab.url,
-          is_https: false,
-          tracker_count: 0,
-          permissions: [],
+          cookies: res.cookies,
+          cookies_count: res.cookies_count,
+        })
+      } else {
+        resolve({
+          cookies: [],
           cookies_count: 0,
-          third_party_domains: [],
-          iframe_count: 0,
-          redirect_count: 0,
-          domain_age_days: 0,
-          ip_address: "internal",
-        })
-        return
-      }
-
-      // Inject content script dulu
-      await injectContentScript(tab.id)
-
-      // Coba ping content script
-      try {
-        const pingResult = await chrome.tabs.sendMessage(tab.id, {
-          action: "ping",
-        })
-        console.log("Ping result:", pingResult)
-
-        // Minta data
-        const data = await chrome.tabs.sendMessage(tab.id, {
-          action: "collectWebsiteData",
-        })
-        console.log("Data dari content script:", data)
-
-        // Tambah redirect count dari background
-        chrome.runtime.sendMessage({ type: "GET_REDIRECT_COUNT" }, (bgRes) => {
-          if (data) {
-            data.redirect_count = bgRes?.count || 0
-          }
-          resolve(data)
-        })
-      } catch (error) {
-        console.log("Gagal komunikasi dengan content script:", error.message)
-
-        // Fallback ke data dasar
-        chrome.runtime.sendMessage({ type: "GET_REDIRECT_COUNT" }, (bgRes) => {
-          resolve({
-            url: tab.url,
-            is_https: tab.url.startsWith("https"),
-            tracker_count: 0,
-            permissions: [],
-            cookies_count: 0,
-            third_party_domains: [],
-            iframe_count: 0,
-            redirect_count: bgRes?.count || 0,
-            domain_age_days: 0,
-            ip_address: new URL(tab.url).hostname,
-          })
         })
       }
     })
   })
 }
 
-// Analisis website
-async function analyzeCurrentWebsite() {
-  try {
-    sendToDashboard({
-      final_score: "...",
-      status: "Loading",
-      message: "Mengambil data website...",
-      analysis_details: ["Mengaktifkan content script..."],
-      url: "Loading...",
-    })
 
-    const websiteData = await getCurrentTabData()
-    if (!websiteData) throw new Error("No data")
+// =============================
+// 📩 TERIMA DATA DARI CONTENT
+// =============================
+chrome.runtime.onMessage.addListener(async (msg, sender) => {
+  if (msg.type === "CONTENT_SCRIPT_READY") {
+    console.log("📦 Data dari content:", msg.data);
+    // 🔥 AMBIL COOKIES DULU
+    const cookieData = await getCookies();
 
-    console.log("Final website data:", websiteData)
+        const payload = {
+    ...msg.data,
+    ...cookieData,
 
-    if (
-      websiteData.url.startsWith("chrome://") ||
-      websiteData.url.startsWith("about:")
-    ) {
-      sendToDashboard({
-        final_score: "N/A",
-        status: "Info",
-        message: "Halaman internal browser",
-        analysis_details: ["Buka website regular untuk analisis"],
-        url: websiteData.url,
-      })
-      return
-    }
+    redirect_count: 0,    // wajib           
+    };
 
-    sendToDashboard({
-      final_score: "...",
-      status: "Loading",
-      message: "Menghubungi scoring engine...",
-      analysis_details: ["Mengirim data ke backend..."],
-      url: websiteData.url,
-    })
+    const result = await analyzeWebsite(payload);
+    console.log("📥 Hasil dari backend:", result);
+    const iframe = document.getElementById("contentFrame");
 
-    const response = await fetch(`${API_URL}/analyze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(websiteData),
-    })
-
-    const result = await response.json()
-    console.log("Hasil backend:", result)
-
-    sendToDashboard(result)
-  } catch (error) {
-    console.error("Error:", error)
-    sendToDashboard({
-      final_score: "Error",
-      status: "Error",
-      message: error.message,
-      analysis_details: ["Cek koneksi backend di port 8000"],
-      url: "Error",
-    })
+    // kirim ke dashboard
+    contentFrame.contentWindow.postMessage(result, "*");
   }
-}
+});
 
-function sendToDashboard(data) {
-  const contentFrame = document.getElementById("contentFrame")
-  if (contentFrame?.contentWindow) {
-    contentFrame.contentWindow.postMessage(
-      { type: "UPDATE_DATA", data: data },
-      "*",
-    )
-  }
-}
-
-// Expose for debugging
-window.analyzeCurrentWebsite = analyzeCurrentWebsite
+// =============================
+init();

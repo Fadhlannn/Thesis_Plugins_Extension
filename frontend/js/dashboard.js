@@ -1,110 +1,57 @@
-// js/dashboard.js
+console.log("📊 Dashboard siap");
 
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("Dashboard loaded")
+// Terima data dari parent (navigation)
+window.addEventListener("message", (event) => {
+  const data = event.data;
 
-  // Listen for messages from parent
-  window.addEventListener("message", (event) => {
-    if (event.data.type === "UPDATE_DATA") {
-      updateUI(event.data.data)
-    }
-  })
+  console.log("🔥 Update UI:", data);
 
-  // Notify parent that dashboard is loaded
-  window.parent.postMessage({ type: "PAGE_LOADED", page: "dashboard" }, "*")
+  if (!data) return;
 
-  // Try to get data from storage as fallback
-  chrome.storage.local.get("websiteData", (result) => {
-    if (
-      result.websiteData &&
-      document.getElementById("riskScore").textContent === "-"
-    ) {
-      analyzeWebsite(result.websiteData)
-    }
-  })
-})
+  // Ambil element
+  const scoreEl = document.getElementById("score");
+  const riskEl = document.getElementById("riskLevel");
+  const msgEl = document.getElementById("message");
+  const reasonsEl = document.getElementById("reasonsList");
+  const urlEl = document.getElementById("websiteUrl");
 
-// Fallback: langsung panggil API dari dashboard
-async function analyzeWebsite(data) {
-  try {
-    const res = await fetch("http://127.0.0.1:8000/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-
-    const result = await res.json()
-    updateUI(result)
-  } catch (error) {
-    console.error("Error analyzing:", error)
-  }
-}
-
-function updateUI(data) {
-  console.log("Updating UI with:", data)
-
-  // Update risk score
-  const scoreEl = document.getElementById("riskScore")
-  if (scoreEl) scoreEl.textContent = data.final_score
-
-  // Update risk level with color
-  const levelEl = document.getElementById("riskLevel")
-  if (levelEl) {
-    levelEl.textContent = data.status
-
-    let color = "bg-gray-500"
-    const level = String(data.status).toLowerCase()
-
-    if (level.includes("berisiko")) {
-      color = "bg-red-500"
-    } else if (level.includes("waspada")) {
-      color = "bg-yellow-500"
-    } else if (level.includes("aman")) {
-      color = "bg-green-500"
-    }
-
-    levelEl.className = `px-3 py-1 rounded-full text-sm ${color}`
+  // Safety check
+  if (!scoreEl || !riskEl || !msgEl || !reasonsEl || !urlEl) {
+    console.error("❌ Ada element yang tidak ditemukan");
+    return;
   }
 
-  // Update message
-  const msgEl = document.getElementById("message")
-  if (msgEl) {
-    // Generate message based on score and status
-    if (data.final_score === "...") {
-      msgEl.textContent = "Loading..."
-    } else if (data.final_score === "Error") {
-      msgEl.textContent = data.message || "Error"
-    } else {
-      const messages = {
-        Berisiko: `⚠️ Website memiliki risiko TINGGI (Skor: ${data.final_score})`,
-        Waspada: `⚠️ Website perlu diwaspadai (Skor: ${data.final_score})`,
-        Aman: `✅ Website terlihat AMAN (Skor: ${data.final_score})`,
-      }
-      msgEl.textContent = messages[data.status] || `Skor: ${data.final_score}`
-    }
+  // =========================
+  // UPDATE DATA
+  // =========================
+  scoreEl.innerText = data.final_score;
+  riskEl.innerText = data.status;
+  urlEl.innerText = data.url;
+
+  // Message simple dari status
+  if (data.status === "Aman") {
+    msgEl.innerText = "Website terlihat aman";
+    riskEl.className = "px-3 py-1 rounded-full text-sm bg-green-500";
+  } else if (data.status === "Waspada") {
+    msgEl.innerText = "Perlu berhati-hati";
+    riskEl.className = "px-3 py-1 rounded-full text-sm bg-yellow-500";
+  } else {
+    msgEl.innerText = "Website berpotensi berbahaya";
+    riskEl.className = "px-3 py-1 rounded-full text-sm bg-red-500";
   }
 
-  // Update reasons
-  const reasonsEl = document.getElementById("reasonsList")
-  if (reasonsEl) {
-    if (data.analysis_details?.length) {
-      reasonsEl.innerHTML = data.analysis_details
-        .map(
-          (r) => `<li class="flex gap-2 text-sm border-b border-white/10 pb-2">
-          <span class="text-red-500">🔴</span>
-          <span>${r}</span>
-        </li>`,
-        )
-        .join("")
-    } else {
-      reasonsEl.innerHTML =
-        '<li class="opacity-50">Tidak ada alasan spesifik</li>'
-    }
-  }
+  // =========================
+  // UPDATE REASONS
+  // =========================
+  reasonsEl.innerHTML = "";
 
-  // Update URL
-  const urlEl = document.getElementById("websiteUrl")
-  if (urlEl && data.url) {
-    urlEl.textContent = data.url
+  if (data.analysis_details && data.analysis_details.length > 0) {
+    data.analysis_details.forEach((reason) => {
+      const li = document.createElement("li");
+      li.textContent = "• " + reason;
+      reasonsEl.appendChild(li);
+    });
+  } else {
+    reasonsEl.innerHTML = "<li>Tidak ada indikasi masalah</li>";
   }
-}
+});

@@ -43,6 +43,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ count: redirectCount })
   }
 
+  if (message.type === "GET_COOKIES") {
+    console.log("🔥 GET_COOKIES DIPANGGIL")
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || !tabs[0]) {
+        console.log("❌ Tidak ada tab aktif")
+        sendResponse({ status: "error" })
+        return
+      }
+
+      const url = tabs[0].url
+      console.log("🌐 URL:", url)
+
+      chrome.cookies.getAll({}, (cookies) => {
+        const domain = new URL(url).hostname
+
+        const filteredCookies = cookies.filter((c) =>
+          domain.includes(c.domain.replace(".", "")) ||
+          c.domain.includes(domain)
+        )
+
+        console.log("🎯 FILTERED:", filteredCookies.length)
+
+        // 🔥 FORMAT SESUAI BACKEND
+        const formatted = filteredCookies.map((c) => ({
+          name: c.name,
+          domain: c.domain,
+        }))
+
+        sendResponse({
+          status: "ok",
+          cookies: formatted,
+          cookies_count: formatted.length, // 🔥 penting
+        })
+      })
+    })
+
+    return true
+  }
   return true
 })
 
