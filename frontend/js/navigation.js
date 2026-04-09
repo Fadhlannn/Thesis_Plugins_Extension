@@ -1,82 +1,36 @@
-// js/navigation.js
+// navigation.js (UI ONLY)
 
-import { analyzeWebsite } from "./api.js";
+document.addEventListener("DOMContentLoaded", () => {
+  const navbarFrame = document.getElementById("navbarFrame");
+  const contentFrame = document.getElementById("contentFrame");
 
-console.log("🚀 Navigation jalan");
+  const lastPage = localStorage.getItem("lastPage") || "dashboard";
+  contentFrame.src = `pages/${lastPage}.html`;
 
-const contentFrame = document.getElementById("contentFrame");
-
-// ambil tab aktif
-async function getActiveTab() {
-  const [tab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true,
+  navbarFrame.addEventListener("load", () => {
+    setTimeout(() => {
+      navbarFrame.contentWindow?.postMessage(
+        { type: "SET_ACTIVE", page: lastPage },
+        "*"
+      );
+    }, 100);
   });
-  return tab;
-}
 
-// inject content script
-async function injectScript(tabId) {
-  await chrome.scripting.executeScript({
-    target: { tabId: tabId },
-    files: ["js/content.js"],
-  });
-}
+  window.addEventListener("message", (event) => {
+    if (event.data.type === "NAV_CLICK") {
+      const page = event.data.page;
 
-// =============================
-// 🔥 MAIN FLOW
-// =============================
-async function init() {
-  const tab = await getActiveTab();
+      contentFrame.src = `pages/${page}.html`;
+      localStorage.setItem("lastPage", page);
 
-  console.log("🌐 Tab:", tab.url);
-
-  await injectScript(tab.id);
-}
-
-function getCookies() {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: "GET_COOKIES" }, (res) => {
-      if (res && res.status === "ok") {
-        resolve({
-          cookies: res.cookies,
-          cookies_count: res.cookies_count,
-        })
-      } else {
-        resolve({
-          cookies: [],
-          cookies_count: 0,
-        })
+      // 🔥 trigger analyzer
+      if (page === "dashboard") {
+        window.postMessage({ type: "TRIGGER_ANALYSIS" }, "*");
       }
-    })
-  })
-}
+    }
+  });
 
-
-// =============================
-// 📩 TERIMA DATA DARI CONTENT
-// =============================
-chrome.runtime.onMessage.addListener(async (msg, sender) => {
-  if (msg.type === "CONTENT_SCRIPT_READY") {
-    console.log("📦 Data dari content:", msg.data);
-    // 🔥 AMBIL COOKIES DULU
-    const cookieData = await getCookies();
-
-        const payload = {
-    ...msg.data,
-    ...cookieData,
-
-    redirect_count: 0,    // wajib           
-    };
-
-    const result = await analyzeWebsite(payload);
-    console.log("📥 Hasil dari backend:", result);
-    const iframe = document.getElementById("contentFrame");
-
-    // kirim ke dashboard
-    contentFrame.contentWindow.postMessage(result, "*");
+  if (lastPage === "dashboard") {
+    window.postMessage({ type: "TRIGGER_ANALYSIS" }, "*");
   }
 });
-
-// =============================
-init();
