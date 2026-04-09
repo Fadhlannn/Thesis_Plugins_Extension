@@ -6,7 +6,7 @@ console.log("📊 Dashboard siap");
 function updateUI(data) {
   if (!data) return;
 
-  console.log("🔥 Update UI:", data);
+  console.log("🔥 Update UI:", JSON.stringify(data, null, 2));
 
   const scoreEl = document.getElementById("score");
   const riskEl = document.getElementById("riskLevel");
@@ -30,17 +30,19 @@ function updateUI(data) {
   // =========================
   // STATUS MESSAGE + COLOR
   // =========================
-  if (data.status === "Aman") {
+  const status = data.status?.toLowerCase();
+
+  if (status === "aman") {
     msgEl.innerText = "Website terlihat aman";
     riskEl.className = "px-3 py-1 rounded-full text-sm bg-green-500";
-  } else if (data.status === "Waspada") {
+  } else if (status === "waspada") {
     msgEl.innerText = "Perlu berhati-hati";
     riskEl.className = "px-3 py-1 rounded-full text-sm bg-yellow-500";
-  } else if (data.status === "Berbahaya") {
+  } else if (status === "berisiko") {
     msgEl.innerText = "Website berpotensi berbahaya";
     riskEl.className = "px-3 py-1 rounded-full text-sm bg-red-500";
   } else {
-    msgEl.innerText = data.message || "-";
+    msgEl.innerText = data.message ?? "Status tidak diketahui";
     riskEl.className = "px-3 py-1 rounded-full text-sm bg-gray-500";
   }
 
