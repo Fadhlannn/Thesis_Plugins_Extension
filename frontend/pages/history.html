@@ -9,61 +9,43 @@
     <h2 class="text-xl font-bold mb-4">Scan History</h2>
 
     <div class="flex gap-2 mb-4">
-      <button class="px-3 py-1 bg-white/20 rounded-full text-sm active">
+      <button
+        class="filter-btn px-3 py-1 bg-white/20 rounded-full text-sm"
+        data-filter="all"
+      >
         All
       </button>
-      <button class="px-3 py-1 bg-white/10 rounded-full text-sm">Safe</button>
-      <button class="px-3 py-1 bg-white/10 rounded-full text-sm">
+      <button
+        class="filter-btn px-3 py-1 bg-white/10 rounded-full text-sm"
+        data-filter="safe"
+      >
+        Safe
+      </button>
+      <button
+        class="filter-btn px-3 py-1 bg-white/10 rounded-full text-sm"
+        data-filter="suspicious"
+      >
         Suspicious
       </button>
-      <button class="px-3 py-1 bg-white/10 rounded-full text-sm">Danger</button>
+      <button
+        class="filter-btn px-3 py-1 bg-white/10 rounded-full text-sm"
+        data-filter="danger"
+      >
+        Danger
+      </button>
     </div>
 
     <div class="space-y-2" id="historyList">
-      <div class="bg-white/10 rounded-lg p-3 flex justify-between items-center">
-        <div>
-          <div class="font-medium">google.com</div>
-          <div class="text-xs opacity-70">2024-01-20 14:30</div>
-        </div>
-        <span class="px-2 py-1 bg-green-500 rounded-full text-xs">Safe</span>
-      </div>
-
-      <div class="bg-white/10 rounded-lg p-3 flex justify-between items-center">
-        <div>
-          <div class="font-medium">suspicious-site.com</div>
-          <div class="text-xs opacity-70">2024-01-20 13:15</div>
-        </div>
-        <span class="px-2 py-1 bg-red-500 rounded-full text-xs">High Risk</span>
-      </div>
+      <div class="text-center opacity-70 py-8">Loading...</div>
     </div>
+
+    <button
+      id="clearHistory"
+      class="w-full mt-4 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition"
+    >
+      Clear All History
+    </button>
+
+    <script src="../js/history.js"></script>
   </body>
-  <script>
-    window.addEventListener("message", (event) => {
-      if (event.data.type === "UPDATE_DATA") {
-        const data = event.data.data
-
-        document.getElementById("riskScore").textContent = data.risk_score
-
-        const levelEl = document.getElementById("riskLevel")
-        levelEl.textContent = data.risk_level
-
-        levelEl.className = `px-3 py-1 rounded-full text-sm ${
-          data.risk_level.toLowerCase() === "high"
-            ? "bg-red-500"
-            : data.risk_level.toLowerCase() === "medium"
-              ? "bg-yellow-500"
-              : "bg-green-500"
-        }`
-
-        document.getElementById("message").textContent = data.message
-
-        const reasonsList = document.getElementById("reasonsList")
-        reasonsList.innerHTML = data.reasons
-          .map((r) => `<li>🔴 ${r}</li>`)
-          .join("")
-      }
-    })
-
-    window.parent.postMessage({ type: "PAGE_LOADED", page: "dashboard" }, "*")
-  </script>
 </html>

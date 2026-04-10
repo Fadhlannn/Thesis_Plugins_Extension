@@ -3,7 +3,15 @@
   "name": "Web Security Guard",
   "version": "1.0",
   "description": "Website security analyzer",
-  "permissions": ["tabs", "activeTab", "storage", "webNavigation", "scripting","cookies"],
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "storage",
+    "webNavigation",
+    "scripting",
+    "cookies",
+    "notifications"
+  ],
   "host_permissions": [
     "<all_urls>",
     "http://localhost:8000/*",
